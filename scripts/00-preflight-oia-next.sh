@@ -1,39 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_MODEL="${BASE_MODEL:-qwen2.5-coder:14b}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_ROOT="${OIA_PROJECT_ROOT:-${REPO_ROOT}/apps/rag-api}"
 
-ok() { printf '[OK] %s\n' "$1"; }
-warn() { printf '[WARN] %s\n' "$1"; }
-fail() { printf '[FAIL] %s\n' "$1"; exit 1; }
+echo "== OIA Next preflight =="
+echo "REPO_ROOT=${REPO_ROOT}"
+echo "APP_ROOT=${APP_ROOT}"
 
-printf '== OIA Next preflight ==\n'
-
-command -v ollama >/dev/null 2>&1 || fail "ollama não encontrado no PATH"
-ok "ollama encontrado: $(command -v ollama)"
-
-command -v docker >/dev/null 2>&1 || warn "docker não encontrado no PATH"
-command -v git >/dev/null 2>&1 || warn "git não encontrado no PATH"
-command -v node >/dev/null 2>&1 || warn "node não encontrado no PATH"
-command -v npm >/dev/null 2>&1 || warn "npm não encontrado no PATH"
-
-if ollama list | awk '{print $1}' | grep -qx "$BASE_MODEL"; then
-  ok "modelo base já existe: $BASE_MODEL"
+if command -v ollama >/dev/null 2>&1; then
+  echo "[OK] ollama encontrado: $(command -v ollama)"
 else
-  warn "modelo base não encontrado: $BASE_MODEL"
-  printf 'Execute: ollama pull %s\n' "$BASE_MODEL"
+  echo "[FAIL] ollama não encontrado"
+  exit 1
 fi
 
-if [ -f "package.json" ]; then
-  ok "package.json localizado na raiz atual"
+if ollama list | grep -q "qwen2.5-coder:14b"; then
+  echo "[OK] modelo base já existe: qwen2.5-coder:14b"
 else
-  warn "package.json não encontrado. Execute este script na raiz do monorepo OIA Next."
+  echo "[WARN] modelo qwen2.5-coder:14b não encontrado"
+  echo "Execute: ollama pull qwen2.5-coder:14b"
 fi
 
-if [ -f "docker-compose.local.yml" ]; then
-  ok "docker-compose.local.yml localizado"
+if [ -f "${APP_ROOT}/package.json" ]; then
+  echo "[OK] package.json localizado em: ${APP_ROOT}/package.json"
 else
-  warn "docker-compose.local.yml não encontrado"
+  echo "[FAIL] package.json não encontrado em: ${APP_ROOT}"
+  exit 1
 fi
 
-printf '\nPreflight concluído.\n'
+if [ -f "${REPO_ROOT}/docker-compose.local.yml" ]; then
+  echo "[OK] docker-compose.local.yml localizado na raiz do repo"
+elif [ -f "${APP_ROOT}/docker-compose.local.yml" ]; then
+  echo "[OK] docker-compose.local.yml localizado em apps/rag-api"
+else
+  echo "[WARN] docker-compose.local.yml não localizado"
+fi
+
+echo
+echo "Preflight concluído."

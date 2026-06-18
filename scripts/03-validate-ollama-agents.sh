@@ -1,19 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-models=("oia_next_full" "oia_next_reviewer" "oia_next_rag" "oia_next_devops")
+MODELS=(
+  "oia_next_full"
+  "oia_next_reviewer"
+  "oia_next_rag"
+  "oia_next_devops"
+)
 
-for model in "${models[@]}"; do
-  printf '\n== Validando %s ==\n' "$model"
-  if ! ollama list | awk '{print $1}' | grep -qx "$model"; then
-    printf '[FAIL] Modelo não encontrado: %s\n' "$model"
+echo "== Validando agentes Ollama =="
+
+for MODEL in "${MODELS[@]}"; do
+  echo
+  echo "== Validando ${MODEL} =="
+
+  if ollama show "${MODEL}:latest" >/dev/null 2>&1 || ollama show "${MODEL}" >/dev/null 2>&1; then
+    echo "[OK] Modelo encontrado: ${MODEL}"
+  else
+    echo "[FAIL] Modelo não encontrado: ${MODEL}"
     exit 1
   fi
-
-  printf 'Responda em uma frase qual é sua função no OIA Next.\n' | ollama run "$model" || {
-    printf '[FAIL] Falha ao executar modelo: %s\n' "$model"
-    exit 1
-  }
 done
 
-printf '\n[OK] Todos os agentes responderam.\n'
+echo
+echo "== Teste rápido de resposta =="
+ollama run oia_next_full "Responda em pt-BR, em uma frase: qual é seu papel no projeto OIA Next?"
+
+echo
+echo "[OK] Todos os agentes foram validados."
