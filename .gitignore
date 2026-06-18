@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+apps/rag-api/node_modules/
+
+# Build outputs
+dist/
+apps/rag-api/dist/
+*.js
+*.d.ts
+*.js.map
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+apps/rag-api/.env.local/
+agent-nestjs-skills/.github/*

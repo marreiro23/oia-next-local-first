@@ -1,0 +1,79 @@
+# ============================================================
+#  RAG Greenfield — Stack Local
+#  Ollama + pgvector + NestJS API
+#  NÃO use este arquivo em produção.
+# ============================================================
+
+networks:
+  rag-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+
+services:
+  #----------------------------------------------------------
+  # PostgreSQL 16 com extensão pgvector
+  # ----------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: rag-postgres
+    restart: unless-stopped
+    networks:
+      - rag-net
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ragdb}
+      POSTGRES_USER: ${POSTGRES_USER:-raguser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ragpass}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-raguser} -d ${POSTGRES_DB:-ragdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ----------------------------------------------------------
+  # NestJS RAG API
+  # ----------------------------------------------------------
+  rag-api:
+    build:
+      context: ./apps/rag-api
+      dockerfile: Dockerfile.local
+      target: development
+    container_name: rag-api
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    networks:
+      - rag-net
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      # Banco
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-ragdb}
+      DB_USER: ${POSTGRES_USER:-raguser}
+      DB_PASS: ${POSTGRES_PASSWORD:-ragpass}
+      DB_SYNCHRONIZE: "true"       # apenas local — em prod use migrations
+      # Ollama — padrão local usa o host.
+      # Para GPU em container, use também docker-compose.gpu.yml.
+      OLLAMA_BASE_URL: http://host-gateway:11434
+      OLLAMA_EMBED_MODEL: nomic-embed-text:latest
+      OLLAMA_CHAT_MODEL: qwen2.5-coder:14b
+      OLLAMA_TIMEOUT_MS: "60000"
+    extra_hosts:
+      - "host-gateway:host-gateway"
+    volumes:
+      - ./apps/rag-api/src:/app/src:delegated   # hot-reload local
+    depends_on:
+      postgres:
+        condition: service_healthy
